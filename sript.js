@@ -216,18 +216,20 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, pos
     const container = postItElement;
     const postId = container.getAttribute("data-post-id");
 
-    // Aplica as cores
+    // Aplica as cores de fundo e texto
     container.style.background = cor;
     container.style.color = textColor;
 
-    // Atualiza os elementos internos
+    // Atualiza os elementos internos (data, título, descrição)
     container.querySelector(".post-it-data").textContent = formatarData(data);
     container.querySelector(".post-it-data").style.color = textColor;
 
     container.querySelector("h3").textContent = titulo;
     container.querySelector("h3").style.borderBottom = `2px solid ${textColor}`;
+    container.querySelector("h3").style.color = textColor; // Aplica a cor do texto no título
 
     container.querySelector("p").innerHTML = descricao.replace(/\n/g, "<br>");
+    container.querySelector("p").style.color = textColor; // Aplica a cor do texto na descrição
 
     // Reinicia o timer com a nova data
     iniciarContagem(container, data);
@@ -245,13 +247,14 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, pos
     postIt.setAttribute("data-post-id", postId); // Armazena o ID
     postIt.style.setProperty("--rotation", rotation);
 
-    // Aplica as cores
+    // Aplica as cores de fundo e texto
     postIt.style.background = cor;
     postIt.style.color = textColor;
 
     // Adicionando os botões em uma div para alinhá-los lado a lado
     const btnContainer = document.createElement("div");
     btnContainer.classList.add("post-it-buttons");
+
     // Botões de Editar, Excluir e Concluir
     const btnExcluir = document.createElement("button");
     btnExcluir.classList.add("excluir-btn");
@@ -327,8 +330,8 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, pos
     // Adiciona o conteúdo
     const htmlContent = `
       <span class="post-it-data" style="color: ${textColor};">${formatarData(data)}</span>
-      <h3 style="border-bottom: 2px solid ${textColor};">${titulo}</h3>
-      <p>${descricao.replace(/\n/g, "<br>")}</p>
+      <h3 style="border-bottom: 2px solid ${textColor}; color: ${textColor};">${titulo}</h3>
+      <p style="color: ${textColor};">${descricao.replace(/\n/g, "<br>")}</p>
       <div class="post-it-timer" style="font-weight: bold; margin-top: 10px;">Calculando...</div>
     `;
 
@@ -360,10 +363,10 @@ window.onload = function () {
       item.corTxt,
       null
     );
-  
+
     postIt.setAttribute("data-post-id", item.id);
   });
-  
+
   // Exibe o contador de tarefas concluídas na página
   atualizarContador();
-}
+};
