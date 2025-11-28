@@ -1,0 +1,215 @@
+/* Estilo do corpo */
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+  }
+  
+  /* Título */
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    color: #2c3e50;
+    margin-bottom: 30px;
+  }
+  
+  /* Estilo para o botão de Adicionar Nova Anotação */
+  button {
+    background-color: #3498db;
+    color: white;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 30px;
+    display: block;
+    width: 100%;
+    max-width: 250px;
+    margin: 0 auto;
+    transition: background-color 0.3s;
+  }
+  
+  button:hover {
+    background-color: #2980b9;
+  }
+  
+  /* Área onde os post-its aparecerão */
+  #postItContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 25px;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  
+  /* Estilo dos post-its */
+  .post-it-item {
+    width: 250px;
+    min-height: 250px;
+    padding: 20px;
+    background-color: #f39c12;
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+    transform: rotate(calc(var(--rotation) * 1deg));
+    border-radius: 8px;
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .post-it-item:hover {
+    z-index: 10;
+    transform: scale(1.05) rotate(calc(var(--rotation) * 1deg));
+    box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  .post-it-item h3 {
+    font-size: 1.2em;
+    margin-top: 0;
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+    word-wrap: break-word;
+    color: #fff;
+  }
+  
+  .post-it-item p {
+    margin: 5px 0;
+    line-height: 1.4;
+    word-wrap: break-word;
+    color: #fff;
+  }
+  
+  .post-it-item .post-it-data {
+    font-size: 0.9em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    display: block;
+    color: #fff;
+  }
+  
+  /* Estilo para os botões dentro do post-it (Editar, Excluir, Concluir) */
+  .post-it-buttons {
+    display: flex;
+    justify-content: space-between; /* Espaçamento igual entre os botões */
+    margin-top: 10px; /* Espaço entre os botões e o conteúdo do post-it */
+    margin-left: -10px;
+  }
+  
+  /* Estilo para cada botão dentro do post-it */
+  .post-it-buttons button {
+    background-color: #2ecc71; /* Cor de fundo verde */
+    color: white; /* Cor do texto */
+    padding: 6px 12px; /* Tamanho do botão */
+    font-size: 0.9rem; /* Tamanho da fonte */
+    border: none; /* Sem borda */
+    border-radius: 5px; /* Bordas arredondadas */
+    cursor: pointer; /* Mão ao passar o mouse */
+    transition: all 0.3s ease; /* Transição suave para hover/foco */
+    width: auto; /* Largura automática */
+    margin: 0 3px; /* Espaçamento entre os botões */
+  }
+  
+  /* Efeito de hover para os botões */
+  .post-it-buttons button:hover {
+    background-color: #27ae60; /* Tom de verde mais escuro */
+    transform: scale(1.05); /* Aumenta o tamanho do botão */
+  }
+  
+  /* Efeito de foco (quando o botão é clicado) */
+  .post-it-buttons button:focus {
+    outline: none; /* Remove a borda padrão do foco */
+    box-shadow: 0 0 5px rgba(46, 204, 113, 0.7); /* Sombra verde ao focar no botão */
+  }
+  
+  /* Efeito de desabilitar o botão */
+  .post-it-buttons button:disabled {
+    background-color: #bdc3c7; /* Cor de fundo cinza */
+    cursor: not-allowed; /* Mão de desabilitado */
+  }
+  
+  /* Estilo para o botão Concluir Tarefa */
+  .btn-concluiu {
+    content: "";
+    background-color: #2ecc71; /* Cor de fundo verde */
+    color: white; /* Cor do texto */
+    padding: 10px 15px; /* Tamanho do botão */
+    font-size: 1rem; /* Tamanho da fonte */
+    border: none; /* Sem borda */
+    border-radius: 5px; /* Bordas arredondadas */
+    cursor: pointer; /* Mão ao passar o mouse */
+    transition: all 0.3s ease; /* Transição suave para hover/foco */
+    text-align: center; /* Centraliza o texto */
+    display: block; /* Garante que o botão ocupe toda a largura disponível */
+    width: 100%; /* Largura máxima */
+    max-width: 250px; /* Largura máxima para manter a proporcionalidade */
+    margin-top: 20px; /* Espaçamento acima do botão */
+    margin-bottom: 30px; /* Espaçamento inferior */
+  }
+  
+  /* Efeito de hover para o botão Concluir */
+  .btn-concluiu:hover {
+    background-color: #27ae60; /* Tom de verde mais escuro */
+    transform: scale(1.05); /* Aumenta o tamanho do botão */
+  }
+  
+  /* Efeito de foco (quando o botão é clicado) */
+  .btn-concluiu:focus {
+    outline: none; /* Remove a borda padrão do foco */
+    box-shadow: 0 0 5px rgba(46, 204, 113, 0.7); /* Sombra verde ao focar no botão */
+  }
+  
+  /* Efeito de desabilitar o botão */
+  .btn-concluiu:disabled {
+    background-color: #bdc3c7; /* Cor de fundo cinza */
+    cursor: not-allowed; /* Mão de desabilitado */
+  }
+  
+  /* Estilo para o contador de tarefas concluídas */
+  #contadorTarefas {
+    background-color: #3498db; /* Cor de fundo azul */
+    color: white; /* Cor do texto */
+    padding: 10px 20px; /* Espaçamento interno */
+    font-size: 1.2rem; /* Tamanho da fonte */
+    border-radius: 8px; /* Bordas arredondadas */
+    width: fit-content; /* Ajusta a largura conforme o conteúdo */
+    margin-top: 20px; /* Espaçamento superior */
+    margin-bottom: 20px; /* Espaçamento inferior */
+    text-align: center; /* Centraliza o texto */
+    font-weight: bold; /* Texto em negrito */
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2); /* Sombra para destaque */
+    transition: all 0.3s ease; /* Transição suave para hover */
+  }
+  
+  #contadorTarefas:hover {
+    background-color: #2980b9; /* Tom de azul mais escuro */
+    transform: scale(1.05); /* Aumenta um pouco o tamanho */
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); /* Sombra mais forte */
+  }
+  
+  /* Responsividade */
+  @media (max-width: 768px) {
+    body {
+      padding: 10px;
+    }
+  
+    button {
+      font-size: 1.1rem;
+    }
+  
+    #postItContainer {
+      gap: 15px;
+    }
+  
+    .post-it-item {
+      width: 200px;
+    }
+  
+    #contadorTarefas {
+      margin-top: 20px;
+    }
+  }
+  
