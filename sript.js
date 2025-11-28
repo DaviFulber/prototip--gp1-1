@@ -1,5 +1,10 @@
 // Armazena todos os IDs de intervalo ativos para que possamos limpá-los (parar o timer)
 const timersAtivos = {};
+const icons = [
+  '/icon/notebook-1-svgrepo-com.svg',
+  '/icon/alert-svgrepo-com.svg',
+  '/icon/study-university-svgrepo-com.svg'
+];
 
 // Declare esta variável ANTES de qualquer função que a use.
 let contadorDeConcluidas = parseInt(sessionStorage.getItem('contadorDeConcluidas')) || 0;
@@ -18,7 +23,6 @@ function getRandomRotation() {
   return Math.floor(Math.random() * 9) - 4;
 }
 
-// Função para formatar a data e hora
 // Função para formatar a data e hora corretamente
 function formatarData(data) {
   if (!data) return "";
@@ -32,7 +36,6 @@ function formatarData(data) {
   // Se a hora for fornecida, formate
   const [hora = "00", minuto = "00", segundo = "00"] = horaParte ? horaParte.split(":") : [];
 
-  // Retorna apenas a data formatada corretamente
   return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
 }
 
@@ -148,31 +151,32 @@ function alerta(postItElement = null) {
     customClass: {
       popup: "post-it-modal",
     },
-    html: `
-                  <div class="post-it-form">
-                      <label for="date">Data e Hora:</label>
-                      <input id="date" type="datetime-local" class="swal2-input" value="${initialData.data}">
+    html: ` 
+      <div class="post-it-form">
+        <label for="date">Data e Hora:</label>
+        <input id="date" type="datetime-local" class="swal2-input" value="${initialData.data}">
 
-                      <label for="nome" style="margin-top: 10px; display: block;">Título:</label>
-                      <input id="nome" type="text" class="swal2-input" placeholder="Título da tarefa" value="${initialData.titulo}">
+        <label for="nome" style="margin-top: 10px; display: block;">Título:</label>
+        <input id="nome" type="text" class="swal2-input" placeholder="Título da tarefa" value="${initialData.titulo}">
 
-                      <label for="descricao" style="margin-top: 10px; display: block;">Descrição:</label>
-                      <textarea id="descricao" class="swal2-textarea" placeholder="Detalhes e anotações...">${initialData.descricao}</textarea>
+        <label for="descricao" style="margin-top: 10px; display: block;">Descrição:</label>
+        <textarea id="descricao" class="swal2-textarea" placeholder="Detalhes e anotações...">${initialData.descricao}</textarea>
 
-                      <label for="cor" style="margin-top: 10px; display: block;">Cor do Post-it:</label>
-                      <input id="cor" type="color" class="swal2-input" value="${initialData.cor}" style="width: 50px; padding: 0; display: inline-block;">
+        <label for="cor" style="margin-top: 10px; display: block;">Cor do Post-it:</label>
+        <input id="cor" type="color" class="swal2-input" value="${initialData.cor}" style="width: 50px; padding: 0; display: inline-block;">
 
-                      <label for="corTxt" style="margin-top: 10px; display: block;">Cor do Texto:</label>
-                      <input id="corTxt" type="color" class="swal2-input" value="${initialData.corTxt}" style="width: 50px; padding: 0; display: inline-block;">
-                      <div style="display:flex;justify-content:center;margin-top:10px;>
-                      <select id="cidades" name="cidades" style="margin-top: 10px; display: block; align-itens:center;">
-                      <option value="sao_paulo">São Paulo</option>
-                     <option value="rio_janeiro">Rio de Janeiro</option>
-                     <option value="belo_horizonte">Belo Horizonte</option>
-</select>
-</div>
-                  </div>
-              `,
+        <label for="corTxt" style="margin-top: 10px; display: block;">Cor do Texto:</label>
+        <input id="corTxt" type="color" class="swal2-input" value="${initialData.corTxt}" style="width: 50px; padding: 0; display: inline-block;">
+
+        <div class="select-container" style="display: flex; justify-content: center; margin-top: 10px;">
+          <select id="cidades" name="cidades">
+            <option value="1">Anotação</option>
+            <option value="2">Importante</option>
+            <option value="3">Estudar</option>
+          </select>
+        </div>
+      </div>
+    `,
     focusConfirm: false,
     showCancelButton: true,
     confirmButtonText: isEditing ? "Salvar Alterações" : "Colar Post-it",
@@ -183,26 +187,19 @@ function alerta(postItElement = null) {
       const descricao = document.getElementById("descricao").value;
       const cor = document.getElementById("cor").value;
       const corTxt = document.getElementById("corTxt").value;
+      const iconChc = document.getElementById("cidades").value;
 
       if (!data || !titulo || !descricao || !cor || !corTxt) {
         Swal.showValidationMessage("Preencha todos os campos!");
       }
 
-      return { data, titulo, descricao, cor, corTxt };
+      return { data, titulo, descricao, cor, corTxt, iconChc };
     },
   }).then((result) => {
     if (result.value) {
       let lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
-
-      // Gera ou reaproveita ID
-      const novoId = postItElement
-        ? postItElement.getAttribute("data-post-id")
-        : Date.now().toString();
-
-      // Remover versão antiga ao editar, para evitar duplicação
+      const novoId = postItElement ? postItElement.getAttribute("data-post-id") : Date.now().toString();
       lista = lista.filter((item) => item.id !== novoId);
-
-      // Adiciona ao array
       lista.push({
         id: novoId,
         data: result.value.data,
@@ -210,9 +207,9 @@ function alerta(postItElement = null) {
         descricao: result.value.descricao,
         cor: result.value.cor,
         corTxt: result.value.corTxt,
+        iconEscolha: result.value.iconChc
       });
 
-      // Salva
       sessionStorage.setItem("Dados", JSON.stringify(lista));
 
       adicionarOuAtualizarPostIt(
@@ -221,6 +218,7 @@ function alerta(postItElement = null) {
         result.value.descricao,
         result.value.cor,
         result.value.corTxt,
+        result.value.iconChc,
         postItElement
       );
     }
@@ -228,52 +226,45 @@ function alerta(postItElement = null) {
 }
 
 // Função que cria ou atualiza os post-its
-function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, postItElement) {
+// Função que cria ou atualiza os post-its
+function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, iconChc, postItElement) {
   if (postItElement) {
-    // --- LÓGICA DE EDIÇÃO (ATUALIZAÇÃO) ---
     const container = postItElement;
     const postId = container.getAttribute("data-post-id");
 
-    // Aplica as cores de fundo e texto
     container.style.background = cor;
     container.style.color = textColor;
 
-    // Atualiza os elementos internos (data, título, descrição)
     container.querySelector(".post-it-data").textContent = formatarData(data);
     container.querySelector(".post-it-data").style.color = textColor;
 
     container.querySelector("h3").textContent = titulo;
     container.querySelector("h3").style.borderBottom = `2px solid ${textColor}`;
-    container.querySelector("h3").style.color = textColor; // Aplica a cor do texto no título
+    container.querySelector("h3").style.color = textColor;
 
     container.querySelector("p").innerHTML = descricao.replace(/\n/g, "<br>");
-    container.querySelector("p").style.color = textColor; // Aplica a cor do texto na descrição
+    container.querySelector("p").style.color = textColor;
+    container.querySelector("img").src = icons[iconChc-1];
 
-    // Reinicia o timer com a nova data
-    iniciarContagem(container, data);
+    iniciarContagem(container, data);  // Atualiza o timer no post-it
 
     Swal.fire("Atualizado!", "O post-it foi editado com sucesso.", "success");
   } else {
-    // --- LÓGICA DE ADIÇÃO (CRIAÇÃO) ---
     const container = document.getElementById("postItContainer");
     const rotation = getRandomRotation();
-    const postId = Date.now().toString(); // ID único para o timer
+    const postId = Date.now().toString();
 
-    // Cria o elemento div principal do post-it
     const postIt = document.createElement("div");
     postIt.classList.add("post-it-item");
-    postIt.setAttribute("data-post-id", postId); // Armazena o ID
+    postIt.setAttribute("data-post-id", postId);
     postIt.style.setProperty("--rotation", rotation);
 
-    // Aplica as cores de fundo e texto
     postIt.style.background = cor;
     postIt.style.color = textColor;
 
-    // Adicionando os botões em uma div para alinhá-los lado a lado
     const btnContainer = document.createElement("div");
     btnContainer.classList.add("post-it-buttons");
 
-    // Botões de Editar, Excluir e Concluir
     const btnExcluir = document.createElement("button");
     btnExcluir.classList.add("excluir-btn");
     btnExcluir.textContent = "Excluir";
@@ -288,18 +279,11 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, pos
       }).then((confirm) => {
         if (confirm.isConfirmed) {
           const postId = postIt.getAttribute("data-post-id");
-
-          // REMOVER DO sessionStorage
           let lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
           lista = lista.filter((item) => item.id !== postId);
           sessionStorage.setItem("Dados", JSON.stringify(lista));
-
-          // Remove o timer
           pararContagem(postId);
-
-          // Remove o post-it da tela
           postIt.remove();
-
           Swal.fire("Removido!", "O post-it foi retirado do mural.", "success");
         }
       });
@@ -310,24 +294,13 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, pos
     btnConclui.textContent = "Concluir Tarefa";
     btnConclui.onclick = function () {
       const postId = postIt.getAttribute("data-post-id");
-
-      // Remover a tarefa do sessionStorage
       let lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
       lista = lista.filter((item) => item.id !== postId);
       sessionStorage.setItem("Dados", JSON.stringify(lista));
-
-      // Parar o timer da tarefa
       pararContagem(postId);
-
-      // Remover o post-it da tela
       postIt.remove();
-
-      // Atualizar o contador de tarefas concluídas
       contadorDeConcluidas++;
-
-      // Atualizar a exibição do contador
       atualizarContador();
-
       Swal.fire("Parabéns!", "Tarefa concluída.", "success");
     };
 
@@ -338,40 +311,42 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, pos
       alerta(postIt);
     };
 
-    // Adiciona os botões ao container
     btnContainer.appendChild(btnExcluir);
     btnContainer.appendChild(btnConclui);
     btnContainer.appendChild(btnEditar);
 
     postIt.appendChild(btnContainer);
 
-    // Adiciona o conteúdo
+    // Adicionando ícone com base na escolha
+    
+    const iconSrc = icons[iconChc - 1]; // Escolhe o ícone com base na seleção
+    const imgTag = document.createElement('img');
+    imgTag.src = iconSrc;
+    imgTag.width = 30;
+    imgTag.height = 30;
+    imgTag.style.position = 'absolute';
+    imgTag.style.bottom = '15px';
+    imgTag.style.right = '10px';
+    postIt.appendChild(imgTag);
+
+    // Adicionando o tempo restante
     const htmlContent = `
       <span class="post-it-data" style="color: ${textColor};">${formatarData(data)}</span>
-      <h3 style="border-bottom: 2px solid ${textColor}; color: ${textColor};">${titulo}</h3>
+      <h3 style="border-bottom: 2px solid ${textColor};">${titulo}</h3>
       <p style="color: ${textColor};">${descricao.replace(/\n/g, "<br>")}</p>
       <div class="post-it-timer" style="font-weight: bold; margin-top: 10px;">Calculando...</div>
     `;
-
     postIt.insertAdjacentHTML("beforeend", htmlContent);
 
-    // Adiciona ao container
     container.appendChild(postIt);
-
-    // Inicia o timer para este novo post-it
-    iniciarContagem(postIt, data);
-
-    // Atualiza o contador ao carregar a página
+    iniciarContagem(postIt, data);  // Inicia o timer para este novo post-it
     atualizarContador();
-
-    return postIt;
   }
 }
 
 // Chama essa função quando a página é carregada
 window.onload = function () {
   const lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
-
   lista.forEach((item) => {
     const postIt = adicionarOuAtualizarPostIt(
       item.data,
@@ -379,13 +354,11 @@ window.onload = function () {
       item.descricao,
       item.cor,
       item.corTxt,
+      item.iconEscolha,
       null
     );
-
     postIt.setAttribute("data-post-id", item.id);
   });
 
-  // Exibe o contador de tarefas concluídas na página
   atualizarContador();
 };
-
