@@ -18,16 +18,27 @@ function getRandomRotation() {
   return Math.floor(Math.random() * 9) - 4;
 }
 
-// Função para formatar a data
+// Função para formatar a data e hora
+// Função para formatar a data e hora corretamente
 function formatarData(data) {
   if (!data) return "";
-  const [ano, mes, dia] = data.split("-");
-  return `${dia}/${mes}/${ano}`;
+
+  // Divida a data e a hora
+  const [dataParte, horaParte] = data.split("T");
+
+  // Divida a parte da data
+  const [ano, mes, dia] = dataParte.split("-");
+
+  // Se a hora for fornecida, formate
+  const [hora = "00", minuto = "00", segundo = "00"] = horaParte ? horaParte.split(":") : [];
+
+  // Retorna apenas a data formatada corretamente
+  return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
 }
 
 // Função que faz o cálculo e formatação do tempo restante
 function calcularTempoRestante(dataAlvo) {
-  const dataInformada = new Date(dataAlvo + "T00:00:00").getTime(); // Assume meia-noite
+  const dataInformada = new Date(dataAlvo).getTime(); // Utiliza o formato "YYYY-MM-DDTHH:MM:SS"
   const dataAgora = new Date().getTime();
   let tempoFaltante = dataInformada - dataAgora;
 
@@ -139,8 +150,8 @@ function alerta(postItElement = null) {
     },
     html: `
                   <div class="post-it-form">
-                      <label for="date">Data:</label>
-                      <input id="date" type="date" class="swal2-input" value="${initialData.data}">
+                      <label for="date">Data e Hora:</label>
+                      <input id="date" type="datetime-local" class="swal2-input" value="${initialData.data}">
 
                       <label for="nome" style="margin-top: 10px; display: block;">Título:</label>
                       <input id="nome" type="text" class="swal2-input" placeholder="Título da tarefa" value="${initialData.titulo}">
@@ -153,6 +164,13 @@ function alerta(postItElement = null) {
 
                       <label for="corTxt" style="margin-top: 10px; display: block;">Cor do Texto:</label>
                       <input id="corTxt" type="color" class="swal2-input" value="${initialData.corTxt}" style="width: 50px; padding: 0; display: inline-block;">
+                      <div style="display:flex;justify-content:center;margin-top:10px;>
+                      <select id="cidades" name="cidades" style="margin-top: 10px; display: block; align-itens:center;">
+                      <option value="sao_paulo">São Paulo</option>
+                     <option value="rio_janeiro">Rio de Janeiro</option>
+                     <option value="belo_horizonte">Belo Horizonte</option>
+</select>
+</div>
                   </div>
               `,
     focusConfirm: false,
@@ -370,3 +388,4 @@ window.onload = function () {
   // Exibe o contador de tarefas concluídas na página
   atualizarContador();
 };
+
