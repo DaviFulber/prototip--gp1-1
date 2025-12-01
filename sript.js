@@ -7,13 +7,13 @@ const icons = [
 ];
 
 // Declare esta variável ANTES de qualquer função que a use.
-let contadorDeConcluidas = parseInt(sessionStorage.getItem('contadorDeConcluidas')) || 0;
+let contadorDeConcluidas = parseInt(localStorage.getItem('contadorDeConcluidas')) || 0;
 
 // Função para atualizar o contador de tarefas concluídas
 function atualizarContador() {
   document.getElementById("contadorTarefas").textContent = `Tarefas Concluídas: ${contadorDeConcluidas}`;
-  // Armazena a contagem de tarefas no sessionStorage
-  sessionStorage.setItem('contadorDeConcluidas', contadorDeConcluidas);
+  // Armazena a contagem de tarefas no localStorage
+  localStorage.setItem('contadorDeConcluidas', contadorDeConcluidas);
 }
 
 // --- FUNÇÕES AUXILIARES ---
@@ -27,13 +27,8 @@ function getRandomRotation() {
 function formatarData(data) {
   if (!data) return "";
 
-  // Divida a data e a hora
   const [dataParte, horaParte] = data.split("T");
-
-  // Divida a parte da data
   const [ano, mes, dia] = dataParte.split("-");
-
-  // Se a hora for fornecida, formate
   const [hora = "00", minuto = "00", segundo = "00"] = horaParte ? horaParte.split(":") : [];
 
   return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
@@ -41,7 +36,7 @@ function formatarData(data) {
 
 // Função que faz o cálculo e formatação do tempo restante
 function calcularTempoRestante(dataAlvo) {
-  const dataInformada = new Date(dataAlvo).getTime(); // Utiliza o formato "YYYY-MM-DDTHH:MM:SS"
+  const dataInformada = new Date(dataAlvo).getTime();
   const dataAgora = new Date().getTime();
   let tempoFaltante = dataInformada - dataAgora;
 
@@ -88,7 +83,7 @@ function iniciarContagem(postItElement, data) {
       clearInterval(timersAtivos[postId]); // Para o timer
       timerElement.style.color = "red";
     } else {
-      timerElement.style.color = postItElement.style.color; // Mantém a cor do texto definida
+      timerElement.style.color = postItElement.style.color;
     }
   }
 
@@ -115,7 +110,6 @@ function alerta(postItElement = null) {
   let isEditing = postItElement !== null;
   let initialData = {};
 
-  // Se estiver editando, extrai os dados atuais do Post-it
   if (isEditing) {
     const container = postItElement;
     const dataElement = container.querySelector(".post-it-data");
@@ -136,7 +130,6 @@ function alerta(postItElement = null) {
       corTxt: container.style.color || "#000000",
     };
   } else {
-    // Define valores padrão para um novo post-it
     initialData = {
       data: "",
       titulo: "",
@@ -197,9 +190,9 @@ function alerta(postItElement = null) {
     },
   }).then((result) => {
     if (result.value) {
-      let lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
+      let lista = JSON.parse(localStorage.getItem("Dados")) || [];
       const novoId = postItElement ? postItElement.getAttribute("data-post-id") : Date.now().toString();
-      lista = lista.filter((item) => item.id !== novoId);
+      lista = lista.filter((item) => item.id !== novoId); // Remove o post-it caso já exista
       lista.push({
         id: novoId,
         data: result.value.data,
@@ -210,7 +203,7 @@ function alerta(postItElement = null) {
         iconEscolha: result.value.iconChc
       });
 
-      sessionStorage.setItem("Dados", JSON.stringify(lista));
+      localStorage.setItem("Dados", JSON.stringify(lista));
 
       adicionarOuAtualizarPostIt(
         result.value.data,
@@ -225,7 +218,6 @@ function alerta(postItElement = null) {
   });
 }
 
-// Função que cria ou atualiza os post-its
 // Função que cria ou atualiza os post-its
 function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, iconChc, postItElement) {
   if (postItElement) {
@@ -246,7 +238,7 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
     container.querySelector("p").style.color = textColor;
     container.querySelector("img").src = icons[iconChc-1];
 
-    iniciarContagem(container, data);  // Atualiza o timer no post-it
+    iniciarContagem(container, data);
 
     Swal.fire("Atualizado!", "O post-it foi editado com sucesso.", "success");
   } else {
@@ -279,9 +271,10 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
       }).then((confirm) => {
         if (confirm.isConfirmed) {
           const postId = postIt.getAttribute("data-post-id");
-          let lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
-          lista = lista.filter((item) => item.id !== postId);
-          sessionStorage.setItem("Dados", JSON.stringify(lista));
+          let lista = JSON.parse(localStorage.getItem("Dados")) || [];
+          lista = lista.filter((item) => item.id !== postId); // Remove o post-it do storage
+          localStorage.setItem("Dados", JSON.stringify(lista));
+
           pararContagem(postId);
           postIt.remove();
           Swal.fire("Removido!", "O post-it foi retirado do mural.", "success");
@@ -294,12 +287,14 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
     btnConclui.textContent = "Concluir Tarefa";
     btnConclui.onclick = function () {
       const postId = postIt.getAttribute("data-post-id");
-      let lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
-      lista = lista.filter((item) => item.id !== postId);
-      sessionStorage.setItem("Dados", JSON.stringify(lista));
+      let lista = JSON.parse(localStorage.getItem("Dados")) || [];
+      lista = lista.filter((item) => item.id !== postId); // Remove o post-it do storage
+      localStorage.setItem("Dados", JSON.stringify(lista));
+
       pararContagem(postId);
       postIt.remove();
       contadorDeConcluidas++;
+      localStorage.setItem('contadorDeConcluidas', contadorDeConcluidas);
       atualizarContador();
       Swal.fire("Parabéns!", "Tarefa concluída.", "success");
     };
@@ -318,8 +313,7 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
     postIt.appendChild(btnContainer);
 
     // Adicionando ícone com base na escolha
-    
-    const iconSrc = icons[iconChc - 1]; // Escolhe o ícone com base na seleção
+    const iconSrc = icons[iconChc - 1];
     const imgTag = document.createElement('img');
     imgTag.src = iconSrc;
     imgTag.width = 30;
@@ -346,7 +340,7 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
 
 // Chama essa função quando a página é carregada
 window.onload = function () {
-  const lista = JSON.parse(sessionStorage.getItem("Dados")) || [];
+  const lista = JSON.parse(localStorage.getItem("Dados")) || [];
   lista.forEach((item) => {
     const postIt = adicionarOuAtualizarPostIt(
       item.data,
