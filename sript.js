@@ -1027,5 +1027,3 @@ function limparTodosPostIts() {
     }
   });
 }
-
-// Removi a chamada para adicionarBotoesImportExport pois já temos os botões no HTML
