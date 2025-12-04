@@ -475,9 +475,16 @@ function getRandomRotation() {
 // Função para formatar a data e hora corretamente
 function formatarData(data) {
   if (!data) return "";
-  const [dataParte, horaParte] = data.split("T");
-  const [ano, mes, dia] = dataParte.split("-");
-  const [hora = "00", minuto = "00", segundo = "00"] = horaParte ? horaParte.split(":") : [];
+  const dataObj = new Date(data);
+  if (isNaN(dataObj.getTime())) return "";
+  
+  const dia = String(dataObj.getDate()).padStart(2, '0');
+  const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+  const ano = dataObj.getFullYear();
+  const hora = String(dataObj.getHours()).padStart(2, '0');
+  const minuto = String(dataObj.getMinutes()).padStart(2, '0');
+  const segundo = String(dataObj.getSeconds()).padStart(2, '0');
+  
   return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
 }
 
@@ -577,10 +584,9 @@ function alerta(postItElement = null) {
     const descElement = container.querySelector("p");
 
     const dataFormatada = dataElement.textContent.trim().split("/");
-    const dataOriginal =
-      dataFormatada.length === 3
-        ? `${dataFormatada[2]}-${dataFormatada[1]}-${dataFormatada[0]}`
-        : "";
+    const dataOriginal = dataFormatada.length === 3
+      ? `${dataFormatada[2]}-${dataFormatada[1]}-${dataFormatada[0]}T00:00:00`
+      : new Date().toISOString().slice(0, 16);
 
     initialData = {
       data: dataOriginal,
@@ -642,8 +648,13 @@ function alerta(postItElement = null) {
       const corTxt = document.getElementById("corTxt").value;
       const iconChc = document.getElementById("cidades").value;
 
-      if (!data || !titulo || !descricao || !cor || !corTxt) {
-        Swal.showValidationMessage("Preencha todos os campos!");
+      if (!titulo.trim()) {
+        Swal.showValidationMessage("Digite um título!");
+        return false;
+      }
+
+      if (!data) {
+        Swal.showValidationMessage("Selecione uma data!");
         return false;
       }
 
@@ -658,7 +669,7 @@ function alerta(postItElement = null) {
   }).then((result) => {
     if (result.value) {
       let lista = JSON.parse(localStorage.getItem("Dados")) || [];
-      const novoId = isEditing ? postItElement.getAttribute("data-post-id") : Date.now().toString();
+      const novoId = isEditing ? postItElement.getAttribute("data-post-id") : `postit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Remove o post-it caso já exista (para edição ou prevenção de duplicados)
       lista = lista.filter((item) => item.id !== novoId);
@@ -696,6 +707,7 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
     const container = postItElement;
     const postId = container.getAttribute("data-post-id");
 
+    // Atualiza visual
     container.style.background = cor;
     container.style.color = textColor;
 
@@ -715,8 +727,22 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
       imgElement.src = icons[iconChc-1];
     }
 
-    // Reinicia o timer com a nova data
+    // Reinicia o timer
     iniciarContagem(container, data);
+
+    // Atualiza localStorage
+    let lista = JSON.parse(localStorage.getItem("Dados")) || [];
+    lista = lista.filter(item => item.id !== postId); // Remove antigo
+    lista.push({
+      id: postId,
+      data: data,
+      titulo: titulo,
+      descricao: descricao,
+      cor: cor,
+      corTxt: textColor,
+      iconEscolha: iconChc.toString()
+    });
+    localStorage.setItem("Dados", JSON.stringify(lista));
 
     Swal.fire("Atualizado!", "O post-it foi editado com sucesso.", "success");
     return container;
@@ -725,7 +751,7 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
   else {
     const container = document.getElementById("postItContainer");
     const rotation = getRandomRotation();
-    const newPostId = postId || Date.now().toString();
+    const newPostId = postId || `postit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const postIt = document.createElement("div");
     postIt.classList.add("post-it-item");
@@ -784,7 +810,7 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
 
     postIt.appendChild(btnContainer);
 
-    // Adicionando ícone com base na escolha
+    // Adicionando ícone
     const iconSrc = icons[iconChc - 1];
     const imgTag = document.createElement('img');
     imgTag.src = iconSrc;
@@ -808,6 +834,19 @@ function adicionarOuAtualizarPostIt(data, titulo, descricao, cor, textColor, ico
     iniciarContagem(postIt, data);
     atualizarContador();
     
+    // Salva no localStorage
+    let lista = JSON.parse(localStorage.getItem("Dados")) || [];
+    lista.push({
+      id: newPostId,
+      data: data,
+      titulo: titulo,
+      descricao: descricao,
+      cor: cor,
+      corTxt: textColor,
+      iconEscolha: iconChc.toString()
+    });
+    localStorage.setItem("Dados", JSON.stringify(lista));
+    
     return postIt;
   }
 }
@@ -821,14 +860,8 @@ function extraiLocal() {
     return "Nenhum dado encontrado no localStorage";
   }
   
-  let jsonString = dadosString.trim();
-  if (!jsonString.startsWith('[')) jsonString = '[' + jsonString;
-  if (!jsonString.endsWith(']')) jsonString = jsonString + ']';
-  
-  let parseado = [];
-  
   try {
-    parseado = JSON.parse(jsonString);
+    const parseado = JSON.parse(dadosString);
     
     if (!Array.isArray(parseado)) {
       return "Os dados não são um array!";
@@ -1040,38 +1073,7 @@ function limparTodosPostIts() {
   });
 }
 
-async function getGroqResponse(apiKey, userMessage, model = 'llama-3.1-8b-instant') {
-    try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    { role: 'system', content: 'Você é um assistente útil.' },
-                    { role: 'user', content: userMessage }
-                ],
-                temperature: 0.7,
-                max_tokens: 1024
-            })
-        });
-
-        if (!response.ok) throw new Error('Erro na API');
-        
-        const data = await response.json();
-        return data.choices[0]?.message?.content || 'Sem resposta';
-        
-    } catch (error) {
-        console.error('Erro:', error);
-        return 'Desculpe, ocorreu um erro ao processar sua solicitação.';
-    }
-}
-
-// Uso mais simples ainda:
-
+// ============ CHAT IA FUNCTIONS ============
 const WORKER_URL = 'https://gargamel-ai.davi-af26.workers.dev';
 
 // Elementos DOM
@@ -1117,8 +1119,7 @@ function closeChat() {
     }
 }
 
-// ADICIONAR MENSAGEM VISUAL (CORRIGIDA)
-// Substitua a função addMessageToChat existente por esta:
+// Adicionar mensagem ao chat
 function addMessageToChat(sender, content, isError = false, isFunctionCall = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
@@ -1155,24 +1156,30 @@ function addMessageToChat(sender, content, isError = false, isFunctionCall = fal
     }
 }
 
-// ENVIAR MENSAGEM (CORRIGIDA)
-// Substitua a função sendMessage existente por esta:
+// Enviar mensagem
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
     
     if (!message) return;
     
+    // Limpar input
     input.value = '';
+    
+    // Adicionar mensagem do usuário
     addMessageToChat('user', message);
     chatHistory.push({ role: 'user', content: message });
     
+    // Mostrar indicador de "digitando..."
     showTypingIndicator();
     
     try {
+        // Enviar para o worker
         const response = await fetch(WORKER_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify({
                 message: message,
                 history: chatHistory,
@@ -1180,42 +1187,145 @@ async function sendMessage() {
             })
         });
         
+        // Remover indicador de "digitando..."
         hideTypingIndicator();
         
+        // Verificar se a resposta é OK
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('Erro HTTP:', response.status, errorText);
+            throw new Error(`Erro do servidor: ${response.status} ${response.statusText}`);
         }
         
+        // Processar resposta
         const data = await response.json();
-        console.log('Resposta do worker:', data);
+        console.log('📦 Resposta completa do worker:', data);
         
-        if (data.error) {
-            addMessageToChat('assistant', `Erro: ${data.error}`, true);
-        } 
+        // CASO 1: Function calls - múltiplos post-its
+        if (data.action === "function_calls" && data.function_name === "create_post_it") {
+            const postIts = data.arguments; // Array de post-its
+            
+            console.log(`🎯 ${postIts.length} post-it(s) detectados:`, postIts);
+            
+            // Mostrar resposta textual da IA (se houver)
+            if (data.text_response && data.text_response.trim()) {
+                addMessageToChat('assistant', data.text_response);
+                chatHistory.push({ role: 'assistant', content: data.text_response });
+            }
+            
+            // Mostrar cada post-it individualmente
+            postIts.forEach((postItArgs, index) => {
+                console.log(`📝 Processando post-it ${index + 1}:`, postItArgs);
+                
+                showPostItConfirmation(
+                    postItArgs, 
+                    `Post-it ${index + 1} de ${postIts.length}: "${postItArgs.titulo}"`,
+                    index + 1,
+                    postIts.length,
+                    postIts // Passa o array completo para o botão "Criar Todos"
+                );
+            });
+            
+            // Mostrar resumo se houver múltiplos
+            if (postIts.length > 1) {
+                setTimeout(() => {
+                    addMessageToChat('assistant', 
+                        `✨ Encontrei ${postIts.length} tarefas para você. Confirme cada uma acima!`,
+                        false,
+                        true
+                    );
+                }, 300);
+            }
+            
+            // Mostrar erros se houver
+            if (data.errors && data.errors.length > 0) {
+                console.warn('⚠️ Erros no processamento:', data.errors);
+                setTimeout(() => {
+                    addMessageToChat('assistant', 
+                        `⚠️ Alguns post-its tiveram problemas: ${data.errors.join(', ')}`,
+                        true
+                    );
+                }, 500);
+            }
+        }
+        
+        // CASO 2: Function call - único post-it (compatibilidade com versões antigas)
         else if (data.action === "function_call" && data.function_name === "create_post_it") {
-            // Function calling detectado!
+            console.log('🎯 Post-it único detectado:', data.arguments);
+            
             const args = data.arguments;
             
-            // Mostrar resposta da IA (se houver)
+            // Mostrar resposta da IA
             if (data.text_response && data.text_response.trim()) {
                 addMessageToChat('assistant', data.text_response);
                 chatHistory.push({ role: 'assistant', content: data.text_response });
             }
             
             // Mostrar confirmação do post-it
-            showPostItConfirmation(args, data.text_response || `Criando: "${args.titulo}"`);
-        } 
+            showPostItConfirmation(
+                args, 
+                data.text_response || `Criando: "${args.titulo}"`,
+                1,
+                1,
+                [args] // Array com um único item
+            );
+        }
+        
+        // CASO 3: Erro do worker
+        else if (data.error) {
+            console.error('❌ Erro do worker:', data.error);
+            addMessageToChat('assistant', `⚠️ Erro: ${data.error}`, true);
+        }
+        
+        // CASO 4: Resposta normal da IA (sem post-its)
         else if (data.response) {
-            // Resposta normal
+            console.log('💬 Resposta normal da IA:', data.response.substring(0, 100) + '...');
             addMessageToChat('assistant', data.response);
             chatHistory.push({ role: 'assistant', content: data.response });
         }
         
+        // CASO 5: Resposta inesperada
+        else {
+            console.warn('⚠️ Resposta inesperada do worker:', data);
+            addMessageToChat('assistant', 
+                'Ops, recebi uma resposta inesperada. Tente novamente!', 
+                true
+            );
+        }
+        
     } catch (error) {
+        // Tratamento de erro
         hideTypingIndicator();
-        addMessageToChat('assistant', `Erro: ${error.message}`, true);
-        console.error('Erro:', error);
+        console.error('💥 Erro crítico:', error);
+        
+        // Mensagens de erro amigáveis
+        let errorMessage = 'Erro desconhecido';
+        
+        if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
+        } else if (error.message.includes('NetworkError')) {
+            errorMessage = 'Erro de rede. Tente novamente.';
+        } else if (error.message.includes('timeout')) {
+            errorMessage = 'Tempo de resposta excedido. O servidor pode estar lento.';
+        } else {
+            errorMessage = `Erro: ${error.message}`;
+        }
+        
+        addMessageToChat('assistant', errorMessage, true);
+        
+        // Tentar reconexão automática
+        setTimeout(() => {
+            if (navigator.onLine) {
+                console.log('🔄 Tentando reconectar...');
+                addMessageToChat('assistant', 'Tentando reconectar...', false, true);
+            }
+        }, 2000);
     }
+    
+    // Focar novamente no input
+    setTimeout(() => {
+        messageInput.focus();
+    }, 100);
 }
 
 // Função para mostrar indicador de "digitando"
@@ -1253,39 +1363,46 @@ function hideTypingIndicator() {
 }
 
 // Função para mostrar confirmação de criação de post-it
-function showPostItConfirmation(args, aiMessage) {
+function showPostItConfirmation(args, aiMessage, index = 1, total = 1, allPostIts = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message ai-message function-call-message';
     messageDiv.style.background = '#e3f2fd';
     messageDiv.style.border = '1px solid #bbdefb';
     messageDiv.style.borderLeft = '4px solid #2196f3';
+    messageDiv.dataset.postitIndex = index;
+    messageDiv.dataset.postitData = JSON.stringify(args); // 👈 ARMAZENA OS DADOS AQUI
     
-    // Converter data
-    let dataDisplay = args.data;
+    // Converter data para display
+    let dataDisplay = args.data || 'hoje';
     if (args.data === 'hoje') {
         const hoje = new Date();
         dataDisplay = hoje.toLocaleDateString('pt-BR');
-    } else if (args.data === 'amanhã') {
+    } else if (args.data === 'amanhã' || args.data === 'amanha' || args.data === 'tomorrow') {
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
         dataDisplay = amanha.toLocaleDateString('pt-BR');
-    } else if (args.data.includes('-')) {
-        // Formato DD-MM-AAAA
+    } else if (args.data && args.data.includes('-')) {
         const [dia, mes, ano] = args.data.split('-');
         dataDisplay = `${dia}/${mes}/${ano}`;
     }
     
-    // Usar ICON_EMOJI_MAP aqui
     const iconEmoji = ICON_EMOJI_MAP[args.iconChc] || ICON_EMOJI_MAP[1] || '📝';
+    const corHex = CORES_MAP[args.cor?.toLowerCase()] || args.cor || '#ffffa5';
+    
+    // Badge se houver múltiplos
+    const badgeHtml = total > 1 ? 
+        `<span style="background: #2196f3; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 10px;">
+            ${index}/${total}
+        </span>` : '';
     
     messageDiv.innerHTML = `
-        <div style="margin-bottom: 15px;">
-            <strong>🤖 Assistente sugeriu:</strong><br>
-            ${aiMessage || `Criar post-it: "${args.titulo}"`}
+        <div style="margin-bottom: 15px; display: flex; align-items: center;">
+            <strong>🤖 Assistente sugeriu ${badgeHtml}:</strong>
         </div>
+        <div>${aiMessage}</div>
         
         <div class="post-it-preview" style="
-            background: ${CORES_MAP[args.cor?.toLowerCase()] || args.cor || '#ffffa5'}; 
+            background: ${corHex}; 
             color: ${args.textColor === 'branco' ? '#ffffff' : '#000000'};
             padding: 15px;
             border-radius: 10px;
@@ -1296,11 +1413,11 @@ function showPostItConfirmation(args, aiMessage) {
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h4 style="margin: 0; border-bottom: 2px solid ${args.textColor === 'branco' ? '#fff' : '#000'}; 
                            padding-bottom: 5px; font-size: 16px;">
-                    ${args.titulo}
+                    ${args.titulo || 'Sem título'}
                 </h4>
                 <span style="font-size: 24px;">${iconEmoji}</span>
             </div>
-            <p style="margin: 10px 0; font-size: 14px; line-height: 1.4;">${args.descricao}</p>
+            <p style="margin: 10px 0; font-size: 14px; line-height: 1.4;">${args.descricao || 'Sem descrição'}</p>
             <div style="font-size: 12px; opacity: 0.8; margin-top: 15px; padding-top: 10px; border-top: 1px dashed ${args.textColor === 'branco' ? '#fff' : '#000'}20;">
                 📅 <strong>Data:</strong> ${dataDisplay}<br>
                 🎨 <strong>Cor:</strong> ${args.cor || 'amarelo'}<br>
@@ -1309,17 +1426,31 @@ function showPostItConfirmation(args, aiMessage) {
         </div>
         
         <div class="confirmation-buttons" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-            <button onclick="createPostItFromAI(${JSON.stringify(args).replace(/"/g, '&quot;')})" 
+            <!-- BOTÃO 1: CRIAR ESTE POST-IT -->
+            <button class="btn-criar-este" 
                     style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
                            cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
-                ✅ Criar Post-it
+                ✅ Criar Este
             </button>
-            <button onclick="editPostItBeforeCreate(${JSON.stringify(args).replace(/"/g, '&quot;')})" 
+            
+            <!-- BOTÃO 2: CRIAR TODOS (apenas se houver múltiplos) -->
+            ${total > 1 && allPostIts ? `
+                <button class="btn-criar-todos" 
+                        style="background: #2196f3; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
+                               cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
+                    ✅ Criar Todos (${total})
+                </button>
+            ` : ''}
+            
+            <!-- BOTÃO 3: EDITAR -->
+            <button class="btn-editar" 
                     style="background: #FF9800; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
                            cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
-                ✏️ Editar Antes
+                ✏️ Editar
             </button>
-            <button onclick="this.closest('.message').remove()" 
+            
+            <!-- BOTÃO 4: CANCELAR -->
+            <button class="btn-cancelar" 
                     style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
                            cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
                 ❌ Cancelar
@@ -1329,139 +1460,347 @@ function showPostItConfirmation(args, aiMessage) {
     
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Adiciona os event listeners
+    const btnCriarEste = messageDiv.querySelector('.btn-criar-este');
+    if (btnCriarEste) {
+        btnCriarEste.addEventListener('click', function() {
+            console.log('🎯 Botão "Criar Este" clicado!');
+            console.log('📦 Dados do post-it:', args);
+            
+            // Mostra que está processando
+            btnCriarEste.innerHTML = '⏳ Criando...';
+            btnCriarEste.disabled = true;
+            btnCriarEste.style.background = '#999';
+            
+            // Chama a função
+            createPostItFromAI(args);
+        });
+    }
+    
+    // Botão "Criar Todos" (se existir)
+    const btnCriarTodos = messageDiv.querySelector('.btn-criar-todos');
+    if (btnCriarTodos && allPostIts) {
+        btnCriarTodos.addEventListener('click', function() {
+            console.log('🎯 Botão "Criar Todos" clicado!');
+            console.log('📦 Todos os post-its:', allPostIts);
+            
+            btnCriarTodos.innerHTML = '⏳ Criando todos...';
+            btnCriarTodos.disabled = true;
+            btnCriarTodos.style.background = '#999';
+            
+            createAllPostIts(allPostIts);
+        });
+    }
+    
+    // Botão "Editar"
+    const btnEditar = messageDiv.querySelector('.btn-editar');
+    if (btnEditar) {
+        btnEditar.addEventListener('click', function() {
+            console.log('✏️ Botão "Editar" clicado');
+            editPostItBeforeCreate(args);
+        });
+    }
+    
+    // Botão "Cancelar"
+    const btnCancelar = messageDiv.querySelector('.btn-cancelar');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', function() {
+            console.log('❌ Botão "Cancelar" clicado');
+            messageDiv.remove();
+        });
+    }
 }
-// Função para criar post-it a partir dos argumentos da IA
+
+// FUNÇÃO CORRIGIDA PARA CRIAR POST-IT DA IA
 function createPostItFromAI(args) {
-    try {
-        // Converter data
-        let dataFinal;
-        if (args.data && args.data.includes('-') && args.data.length === 10) {
-            // Formato DD-MM-AAAA
-            const [dia, mes, ano] = args.data.split('-');
-            const dataObj = new Date(`${ano}-${mes}-${dia}T23:59:00`);
-            if (!isNaN(dataObj.getTime())) {
-                dataFinal = dataObj.toISOString();
-            } else {
-                dataFinal = new Date().toISOString();
+    console.log('🎯 FUNÇÃO createPostItFromAI INICIADA');
+    
+    // 1. VALIDAÇÃO BÁSICA
+    if (!args || typeof args !== 'object') {
+        console.error('❌ ERRO: Argumentos inválidos');
+        Swal.fire('Erro', 'Dados inválidos recebidos', 'error');
+        return false;
+    }
+    
+    // 2. DADOS BÁSICOS (com fallbacks)
+    const titulo = args.titulo || 'Tarefa ' + new Date().toLocaleTimeString();
+    const descricao = args.descricao || 'Criado pelo assistente IA';
+    
+    console.log('📝 Dados recebidos:', { titulo, descricao, ...args });
+    
+    // 3. PREPARA DATA
+    let dataFinal;
+    if (args.data === 'amanhã' || args.data === 'amanha' || args.data === 'tomorrow') {
+        const amanha = new Date();
+        amanha.setDate(amanha.getDate() + 1);
+        amanha.setHours(23, 59, 0); // Final do dia
+        dataFinal = amanha.toISOString();
+    } else if (args.data === 'hoje' || args.data === 'today') {
+        const hoje = new Date();
+        hoje.setHours(23, 59, 0); // Final do dia
+        dataFinal = hoje.toISOString();
+    } else if (args.data && typeof args.data === 'string' && args.data.includes('-')) {
+        // Tenta parsear a data fornecida
+        try {
+            dataFinal = new Date(args.data).toISOString();
+            if (isNaN(new Date(dataFinal).getTime())) {
+                // Se não for válida, usa amanhã
+                const amanha = new Date();
+                amanha.setDate(amanha.getDate() + 1);
+                dataFinal = amanha.toISOString();
             }
-        } else if (args.data === 'hoje' || args.data === 'today') {
-            const hoje = new Date();
-            hoje.setHours(23, 59, 0);
-            dataFinal = hoje.toISOString();
-        } else if (args.data === 'amanhã' || args.data === 'amanha' || args.data === 'tomorrow') {
+        } catch {
+            // Se der erro, usa amanhã
             const amanha = new Date();
             amanha.setDate(amanha.getDate() + 1);
-            amanha.setHours(23, 59, 0);
             dataFinal = amanha.toISOString();
-        } else if (args.data === 'próxima semana' || args.data === 'proxima semana' || args.data === 'next week') {
-            const semana = new Date();
-            semana.setDate(semana.getDate() + 7);
-            semana.setHours(23, 59, 0);
-            dataFinal = semana.toISOString();
-        } else {
-            // Tenta parsear como data
-            const dataObj = new Date(args.data);
-            if (!isNaN(dataObj.getTime())) {
-                dataFinal = dataObj.toISOString();
-            } else {
-                dataFinal = new Date().toISOString();
+        }
+    } else {
+        // Padrão: amanhã
+        const amanha = new Date();
+        amanha.setDate(amanha.getDate() + 1);
+        amanha.setHours(23, 59, 0);
+        dataFinal = amanha.toISOString();
+    }
+    
+    // 4. PREPARA CORES
+    const corMap = {
+        'amarelo': '#ffffa5', 'vermelho': '#ffcccc', 'verde': '#ccffcc',
+        'azul': '#cce5ff', 'roxo': '#e6ccff', 'rosa': '#ffccf9',
+        'laranja': '#ffddcc', 'cinza': '#f0f0f0'
+    };
+    
+    const corFinal = args.cor ? (corMap[args.cor.toLowerCase()] || args.cor) : '#ffffa5';
+    const corTxtFinal = (args.textColor === 'branco' || args.textColor === 'white') ? '#ffffff' : '#000000';
+    
+    // 5. ÍCONE
+    let iconEscolhaFinal = '1';
+    if (args.iconChc) {
+        const iconNum = parseInt(args.iconChc);
+        if (!isNaN(iconNum) && iconNum >= 1 && iconNum <= 10) {
+            iconEscolhaFinal = iconNum.toString();
+        }
+    }
+    
+    // 6. GERA ID ÚNICO
+    const postId = 'ai_postit_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    
+    // 7. CRIA OBJETO COMPLETO
+    const postItData = {
+        id: postId,
+        data: dataFinal,
+        titulo: titulo,
+        descricao: descricao,
+        cor: corFinal,
+        corTxt: corTxtFinal,
+        iconEscolha: iconEscolhaFinal
+    };
+    
+    console.log('📦 Objeto completo:', postItData);
+    
+    // 8. SALVA NO LOCALSTORAGE
+    try {
+        console.log('💾 Salvando no localStorage...');
+        
+        // Pega dados existentes ou cria array vazio
+        let dadosExistentes = [];
+        const dadosString = localStorage.getItem("Dados");
+        
+        if (dadosString) {
+            try {
+                dadosExistentes = JSON.parse(dadosString);
+                if (!Array.isArray(dadosExistentes)) {
+                    console.warn('⚠️ Dados não eram array, recriando...');
+                    dadosExistentes = [];
+                }
+            } catch (parseError) {
+                console.warn('⚠️ Erro ao parsear, recriando array:', parseError);
+                dadosExistentes = [];
             }
         }
         
-        // Converter cor - usa CORES_MAP aqui
-        const corFinal = CORES_MAP[args.cor?.toLowerCase()] || args.cor || '#ffffa5';
-        const textColorFinal = (args.textColor === 'branco' || args.textColor === 'white') ? '#ffffff' : '#000000';
+        console.log('📊 Dados existentes:', dadosExistentes.length);
         
-        // Converter ícone (1-10 para 1-3)
-        let iconChcFinal = parseInt(args.iconChc) || 1;
-        if (iconChcFinal > 3) {
-            if (iconChcFinal <= 3) iconChcFinal = 1;
-            else if (iconChcFinal <= 7) iconChcFinal = 2;
-            else iconChcFinal = 3;
-        }
+        // Adiciona novo item
+        dadosExistentes.push(postItData);
         
-        // Chama sua função existente
+        // Salva
+        localStorage.setItem("Dados", JSON.stringify(dadosExistentes));
+        console.log('✅ Dados salvos no localStorage');
+        
+    } catch (storageError) {
+        console.error('💥 ERRO NO LOCALSTORAGE:', storageError);
+        Swal.fire('ERRO', 'Não foi possível salvar no armazenamento.', 'error');
+        return false;
+    }
+    
+    // 9. CRIA VISUALMENTE
+    try {
+        console.log('🎨 Criando visualmente...');
+        
+        // Chama a função principal
         adicionarOuAtualizarPostIt(
-            dataFinal,
-            args.titulo,
-            args.descricao,
-            corFinal,
-            textColorFinal,
-            iconChcFinal,
+            postItData.data,
+            postItData.titulo,
+            postItData.descricao,
+            postItData.cor,
+            postItData.corTxt,
+            parseInt(postItData.iconEscolha),
             null,
-            null
+            postItData.id
         );
         
-        // Feedback visual
-        const messageDiv = document.querySelector('.function-call-message:last-child');
-        if (messageDiv) {
-            const buttonsDiv = messageDiv.querySelector('.confirmation-buttons');
-            if (buttonsDiv) {
-                buttonsDiv.innerHTML = `
-                    <span style="color: #4CAF50; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                        ✅ Post-it criado com sucesso!
-                    </span>
-                `;
-            }
-        }
+        console.log('✅ Post-it criado visualmente');
         
+    } catch (visualError) {
+        console.warn('⚠️ Erro na criação visual:', visualError);
+        // Continua mesmo assim - o importante é que salvou no localStorage
+    }
+    
+    // 10. FEEDBACK FINAL
+    console.log('🎉 PROCESSO COMPLETO COM SUCESSO!');
+    
+    // Atualiza botão se existir
+    const btnCriar = document.querySelector('.btn-criar-este');
+    if (btnCriar) {
+        btnCriar.innerHTML = '✅ Criado!';
+        btnCriar.style.background = '#4CAF50';
+        btnCriar.disabled = true;
+    }
+    
+    // Mensagem para usuário
+    setTimeout(() => {
         Swal.fire({
             icon: 'success',
-            title: 'Pronto!',
-            text: `Post-it "${args.titulo}" foi adicionado.`,
-            timer: 1500,
+            title: '✅ Post-it Criado!',
+            text: `"${titulo}" foi salvo no sistema.`,
+            timer: 2000,
             showConfirmButton: false
         });
-        
-    } catch (error) {
-        console.error('Erro ao criar post-it:', error);
+    }, 300);
+    
+    return true;
+}
+
+// Função para criar múltiplos post-its
+function createAllPostIts(postItsArray) {
+    if (!postItsArray || !Array.isArray(postItsArray)) {
+        console.error('Array de post-its inválido:', postItsArray);
         Swal.fire({
             icon: 'error',
             title: 'Erro',
-            text: 'Não foi possível criar o post-it: ' + error.message,
+            text: 'Dados inválidos para criar post-its.',
+            timer: 2000
+        });
+        return;
+    }
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Desabilita botões durante o processo
+    document.querySelectorAll('.confirmation-buttons button').forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+    });
+    
+    // Processa cada post-it
+    postItsArray.forEach((postItArgs, index) => {
+        try {
+            // Chama a função existente
+            createPostItFromAI(postItArgs);
+            successCount++;
+            
+            // Atualiza visual do item específico
+            const messageDiv = document.querySelector(`[data-postit-index="${index + 1}"]`);
+            if (messageDiv) {
+                const buttonsDiv = messageDiv.querySelector('.confirmation-buttons');
+                if (buttonsDiv) {
+                    buttonsDiv.innerHTML = `
+                        <span style="color: #4CAF50; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                            ✅ Criado
+                        </span>
+                    `;
+                }
+            }
+            
+        } catch (error) {
+            console.error(`Erro ao criar post-it ${index + 1}:`, error);
+            errorCount++;
+            
+            // Mostra erro no item específico
+            const messageDiv = document.querySelector(`[data-postit-index="${index + 1}"]`);
+            if (messageDiv) {
+                const buttonsDiv = messageDiv.querySelector('.confirmation-buttons');
+                if (buttonsDiv) {
+                    buttonsDiv.innerHTML = `
+                        <span style="color: #f44336; font-weight: bold;">
+                            ❌ Erro
+                        </span>
+                    `;
+                }
+            }
+        }
+    });
+    
+    // Feedback final
+    setTimeout(() => {
+        Swal.fire({
+            icon: successCount > 0 ? 'success' : 'error',
+            title: successCount > 0 ? 'Concluído!' : 'Ops...',
+            html: `
+                <strong>${successCount} post-it(s) criados com sucesso!</strong>
+                ${errorCount > 0 ? `<br><small>${errorCount} não foram criados.</small>` : ''}
+            `,
             timer: 3000
         });
-    }
+        
+        // Reabilita botões
+        document.querySelectorAll('.confirmation-buttons button').forEach(btn => {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        });
+        
+    }, 500);
 }
 
 // Função para editar antes de criar
 function editPostItBeforeCreate(args) {
-    // Abre o modal de edição com os valores da IA
-    // Adapte para seu sistema de edição existente
+    // Abre o modal de edição existente
+    alerta();
     
-    // Preenche os campos do modal (se existirem)
-    const modalTitulo = document.getElementById('nome') || document.getElementById('tituloInput');
-    const modalDescricao = document.getElementById('descricao') || document.getElementById('descricaoInput');
-    const modalData = document.getElementById('date') || document.getElementById('dataInput');
-    
-    if (modalTitulo) modalTitulo.value = args.titulo;
-    if (modalDescricao) modalDescricao.value = args.descricao;
-    
-    // Converte data especial
-    if (modalData) {
-        if (args.data === 'hoje') {
-            const hoje = new Date();
-            hoje.setHours(23, 59, 0); // Final do dia
-            modalData.value = hoje.toISOString().slice(0, 16);
-        } else if (args.data === 'amanhã') {
-            const amanha = new Date();
-            amanha.setDate(amanha.getDate() + 1);
-            amanha.setHours(23, 59, 0);
-            modalData.value = amanha.toISOString().slice(0, 16);
-        } else {
-            modalData.value = args.data;
+    // Preenche os campos após um pequeno delay para garantir que o modal está aberto
+    setTimeout(() => {
+        const modalTitulo = document.getElementById('nome');
+        const modalDescricao = document.getElementById('descricao');
+        const modalData = document.getElementById('date');
+        
+        if (modalTitulo) modalTitulo.value = args.titulo || '';
+        if (modalDescricao) modalDescricao.value = args.descricao || '';
+        
+        // Processa data especial
+        if (modalData) {
+            if (args.data === 'hoje' || args.data === 'today') {
+                const hoje = new Date();
+                hoje.setHours(23, 59, 0);
+                modalData.value = hoje.toISOString().slice(0, 16);
+            } else if (args.data === 'amanhã' || args.data === 'amanha' || args.data === 'tomorrow') {
+                const amanha = new Date();
+                amanha.setDate(amanha.getDate() + 1);
+                amanha.setHours(23, 59, 0);
+                modalData.value = amanha.toISOString().slice(0, 16);
+            } else {
+                modalData.value = args.data || '';
+            }
         }
-    }
-    
-    // Remove a mensagem de confirmação
-    const messageDiv = document.querySelector('.function-call-message:last-child');
-    if (messageDiv) messageDiv.remove();
-    
-    // Foca no primeiro campo
-    if (modalTitulo) modalTitulo.focus();
+        
+        // Foca no primeiro campo
+        if (modalTitulo) modalTitulo.focus();
+    }, 100);
 }
 
-// Event Listeners
+// Event Listeners do Chat
 chatButton.addEventListener('click', expandChat);
 chatHeader.addEventListener('click', minimizeChat);
 
@@ -1492,7 +1831,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Auto-expand após alguns segundos
+// Auto-expand após alguns segundos (opcional)
 setTimeout(() => {
     if (!isExpanded) {
         expandChat();
