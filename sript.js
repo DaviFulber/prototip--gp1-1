@@ -1,10 +1,22 @@
 // Armazena todos os IDs de intervalo ativos para que possamos limpá-los (parar o timer)
 const timersAtivos = {};
+const CORES_MAP = {
+  'amarelo': '#ffffa5', 'vermelho': '#ffcccc', 'verde': '#ccffcc',
+  'azul': '#cce5ff', 'roxo': '#e6ccff', 'rosa': '#ffccf9',
+  'laranja': '#ffddcc', 'cinza': '#f0f0f0',
+  'yellow': '#ffffa5', 'red': '#ffcccc', 'green': '#ccffcc',
+  'blue': '#cce5ff', 'purple': '#e6ccff', 'pink': '#ffccf9',
+  'orange': '#ffddcc', 'gray': '#f0f0f0'
+};
 const icons = [
   'icon/notebook-1-svgrepo-com.svg',
   'icon/alert-svgrepo-com.svg',
   'icon/study-university-svgrepo-com.svg'
 ];
+const ICON_EMOJI_MAP = {
+  1: '📝', 2: '💡', 3: '⚠️', 4: '🎯', 5: '📚',
+  6: '🏃', 7: '💰', 8: '❤️', 9: '🛒', 10: '🎂'
+};
 
 // Declare esta variável ANTES de qualquer função que a use.
 let contadorDeConcluidas = parseInt(localStorage.getItem('contadorDeConcluidas')) || 0;
@@ -1106,22 +1118,29 @@ function closeChat() {
 }
 
 // ADICIONAR MENSAGEM VISUAL (CORRIGIDA)
-function addMessageToChat(sender, content, isError = false) {
+// Substitua a função addMessageToChat existente por esta:
+function addMessageToChat(sender, content, isError = false, isFunctionCall = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
-    messageDiv.style.whiteSpace = 'pre-wrap';  // ← MAGIC HERE
+    messageDiv.style.whiteSpace = 'pre-wrap';
     messageDiv.style.wordBreak = 'break-word';
+    
     if (isError) {
         messageDiv.style.background = '#ffebee';
         messageDiv.style.color = '#c62828';
         messageDiv.style.border = '1px solid #ffcdd2';
     }
     
+    if (isFunctionCall) {
+        messageDiv.style.background = '#e3f2fd';
+        messageDiv.style.borderLeft = '4px solid #2196f3';
+    }
+    
     const senderName = sender === 'user' ? '👤 Você' : '🤖 Assistente';
     const formattedContent = content
-        .replace(/\n/g, '<br>')  // Quebras de linha
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Negrito **texto**
-        .replace(/\*(.*?)\*/g, '<em>$1</em>');  // Itálico *texto*
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
 
     messageDiv.innerHTML = `<strong>${senderName}:</strong><br>${formattedContent}`;
     
@@ -1129,7 +1148,7 @@ function addMessageToChat(sender, content, isError = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     // Notificação se chat minimizado
-    if (!isExpanded && sender === 'assistant') {
+    if (!isExpanded && sender === 'assistant' && !isFunctionCall) {
         unreadMessages++;
         notificationBadge.textContent = unreadMessages;
         notificationBadge.style.display = 'flex';
@@ -1137,31 +1156,23 @@ function addMessageToChat(sender, content, isError = false) {
 }
 
 // ENVIAR MENSAGEM (CORRIGIDA)
+// Substitua a função sendMessage existente por esta:
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
     
     if (!message) return;
     
-    // Limpar input
     input.value = '';
-    
-    // Adicionar mensagem do usuário VISUALMENTE
     addMessageToChat('user', message);
-    
-    // Adicionar ao histórico
     chatHistory.push({ role: 'user', content: message });
     
-    console.log('Enviando mensagem:', message);
-    console.log('Histórico atual:', chatHistory);
+    showTypingIndicator();
     
     try {
-        // Enviar para o worker
         const response = await fetch(WORKER_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
                 history: chatHistory,
@@ -1169,31 +1180,285 @@ async function sendMessage() {
             })
         });
         
-        console.log('Resposta do worker:', response.status);
+        hideTypingIndicator();
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('Resposta JSON:', data);
+        console.log('Resposta do worker:', data);
         
         if (data.error) {
             addMessageToChat('assistant', `Erro: ${data.error}`, true);
-        } else if (data.response) {
-            // Adicionar resposta da IA VISUALMENTE
+        } 
+        else if (data.action === "function_call" && data.function_name === "create_post_it") {
+            // Function calling detectado!
+            const args = data.arguments;
+            
+            // Mostrar resposta da IA (se houver)
+            if (data.text_response && data.text_response.trim()) {
+                addMessageToChat('assistant', data.text_response);
+                chatHistory.push({ role: 'assistant', content: data.text_response });
+            }
+            
+            // Mostrar confirmação do post-it
+            showPostItConfirmation(args, data.text_response || `Criando: "${args.titulo}"`);
+        } 
+        else if (data.response) {
+            // Resposta normal
             addMessageToChat('assistant', data.response);
-            
-            // Adicionar ao histórico
             chatHistory.push({ role: 'assistant', content: data.response });
-            
-            console.log('Histórico atualizado:', chatHistory.length, 'mensagens');
         }
         
     } catch (error) {
-        console.error('Erro:', error);
+        hideTypingIndicator();
         addMessageToChat('assistant', `Erro: ${error.message}`, true);
+        console.error('Erro:', error);
     }
+}
+
+// Função para mostrar indicador de "digitando"
+function showTypingIndicator() {
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'typingIndicator';
+    typingDiv.className = 'message ai-message';
+    typingDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: #666;">
+            <div style="display: flex; gap: 4px;">
+                <div style="width: 8px; height: 8px; background: #667eea; border-radius: 50%; animation: typing 1.4s infinite;"></div>
+                <div style="width: 8px; height: 8px; background: #667eea; border-radius: 50%; animation: typing 1.4s infinite 0.2s;"></div>
+                <div style="width: 8px; height: 8px; background: #667eea; border-radius: 50%; animation: typing 1.4s infinite 0.4s;"></div>
+            </div>
+            <span>Digitando...</span>
+        </div>
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes typing {
+            0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+            30% { opacity: 1; transform: translateY(-5px); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingDiv = document.getElementById('typingIndicator');
+    if (typingDiv) typingDiv.remove();
+}
+
+// Função para mostrar confirmação de criação de post-it
+function showPostItConfirmation(args, aiMessage) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message ai-message function-call-message';
+    messageDiv.style.background = '#e3f2fd';
+    messageDiv.style.border = '1px solid #bbdefb';
+    messageDiv.style.borderLeft = '4px solid #2196f3';
+    
+    // Converter data
+    let dataDisplay = args.data;
+    if (args.data === 'hoje') {
+        const hoje = new Date();
+        dataDisplay = hoje.toLocaleDateString('pt-BR');
+    } else if (args.data === 'amanhã') {
+        const amanha = new Date();
+        amanha.setDate(amanha.getDate() + 1);
+        dataDisplay = amanha.toLocaleDateString('pt-BR');
+    } else if (args.data.includes('-')) {
+        // Formato DD-MM-AAAA
+        const [dia, mes, ano] = args.data.split('-');
+        dataDisplay = `${dia}/${mes}/${ano}`;
+    }
+    
+    // Usar ICON_EMOJI_MAP aqui
+    const iconEmoji = ICON_EMOJI_MAP[args.iconChc] || ICON_EMOJI_MAP[1] || '📝';
+    
+    messageDiv.innerHTML = `
+        <div style="margin-bottom: 15px;">
+            <strong>🤖 Assistente sugeriu:</strong><br>
+            ${aiMessage || `Criar post-it: "${args.titulo}"`}
+        </div>
+        
+        <div class="post-it-preview" style="
+            background: ${CORES_MAP[args.cor?.toLowerCase()] || args.cor || '#ffffa5'}; 
+            color: ${args.textColor === 'branco' ? '#ffffff' : '#000000'};
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 2px dashed ${args.textColor === 'branco' ? '#fff' : '#000'};
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0; border-bottom: 2px solid ${args.textColor === 'branco' ? '#fff' : '#000'}; 
+                           padding-bottom: 5px; font-size: 16px;">
+                    ${args.titulo}
+                </h4>
+                <span style="font-size: 24px;">${iconEmoji}</span>
+            </div>
+            <p style="margin: 10px 0; font-size: 14px; line-height: 1.4;">${args.descricao}</p>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 15px; padding-top: 10px; border-top: 1px dashed ${args.textColor === 'branco' ? '#fff' : '#000'}20;">
+                📅 <strong>Data:</strong> ${dataDisplay}<br>
+                🎨 <strong>Cor:</strong> ${args.cor || 'amarelo'}<br>
+                🔤 <strong>Texto:</strong> ${args.textColor || 'preto'}
+            </div>
+        </div>
+        
+        <div class="confirmation-buttons" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+            <button onclick="createPostItFromAI(${JSON.stringify(args).replace(/"/g, '&quot;')})" 
+                    style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
+                           cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
+                ✅ Criar Post-it
+            </button>
+            <button onclick="editPostItBeforeCreate(${JSON.stringify(args).replace(/"/g, '&quot;')})" 
+                    style="background: #FF9800; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
+                           cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
+                ✏️ Editar Antes
+            </button>
+            <button onclick="this.closest('.message').remove()" 
+                    style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 5px; 
+                           cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px;">
+                ❌ Cancelar
+            </button>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+// Função para criar post-it a partir dos argumentos da IA
+function createPostItFromAI(args) {
+    try {
+        // Converter data
+        let dataFinal;
+        if (args.data && args.data.includes('-') && args.data.length === 10) {
+            // Formato DD-MM-AAAA
+            const [dia, mes, ano] = args.data.split('-');
+            const dataObj = new Date(`${ano}-${mes}-${dia}T23:59:00`);
+            if (!isNaN(dataObj.getTime())) {
+                dataFinal = dataObj.toISOString();
+            } else {
+                dataFinal = new Date().toISOString();
+            }
+        } else if (args.data === 'hoje' || args.data === 'today') {
+            const hoje = new Date();
+            hoje.setHours(23, 59, 0);
+            dataFinal = hoje.toISOString();
+        } else if (args.data === 'amanhã' || args.data === 'amanha' || args.data === 'tomorrow') {
+            const amanha = new Date();
+            amanha.setDate(amanha.getDate() + 1);
+            amanha.setHours(23, 59, 0);
+            dataFinal = amanha.toISOString();
+        } else if (args.data === 'próxima semana' || args.data === 'proxima semana' || args.data === 'next week') {
+            const semana = new Date();
+            semana.setDate(semana.getDate() + 7);
+            semana.setHours(23, 59, 0);
+            dataFinal = semana.toISOString();
+        } else {
+            // Tenta parsear como data
+            const dataObj = new Date(args.data);
+            if (!isNaN(dataObj.getTime())) {
+                dataFinal = dataObj.toISOString();
+            } else {
+                dataFinal = new Date().toISOString();
+            }
+        }
+        
+        // Converter cor - usa CORES_MAP aqui
+        const corFinal = CORES_MAP[args.cor?.toLowerCase()] || args.cor || '#ffffa5';
+        const textColorFinal = (args.textColor === 'branco' || args.textColor === 'white') ? '#ffffff' : '#000000';
+        
+        // Converter ícone (1-10 para 1-3)
+        let iconChcFinal = parseInt(args.iconChc) || 1;
+        if (iconChcFinal > 3) {
+            if (iconChcFinal <= 3) iconChcFinal = 1;
+            else if (iconChcFinal <= 7) iconChcFinal = 2;
+            else iconChcFinal = 3;
+        }
+        
+        // Chama sua função existente
+        adicionarOuAtualizarPostIt(
+            dataFinal,
+            args.titulo,
+            args.descricao,
+            corFinal,
+            textColorFinal,
+            iconChcFinal,
+            null,
+            null
+        );
+        
+        // Feedback visual
+        const messageDiv = document.querySelector('.function-call-message:last-child');
+        if (messageDiv) {
+            const buttonsDiv = messageDiv.querySelector('.confirmation-buttons');
+            if (buttonsDiv) {
+                buttonsDiv.innerHTML = `
+                    <span style="color: #4CAF50; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                        ✅ Post-it criado com sucesso!
+                    </span>
+                `;
+            }
+        }
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Pronto!',
+            text: `Post-it "${args.titulo}" foi adicionado.`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+        
+    } catch (error) {
+        console.error('Erro ao criar post-it:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: 'Não foi possível criar o post-it: ' + error.message,
+            timer: 3000
+        });
+    }
+}
+
+// Função para editar antes de criar
+function editPostItBeforeCreate(args) {
+    // Abre o modal de edição com os valores da IA
+    // Adapte para seu sistema de edição existente
+    
+    // Preenche os campos do modal (se existirem)
+    const modalTitulo = document.getElementById('nome') || document.getElementById('tituloInput');
+    const modalDescricao = document.getElementById('descricao') || document.getElementById('descricaoInput');
+    const modalData = document.getElementById('date') || document.getElementById('dataInput');
+    
+    if (modalTitulo) modalTitulo.value = args.titulo;
+    if (modalDescricao) modalDescricao.value = args.descricao;
+    
+    // Converte data especial
+    if (modalData) {
+        if (args.data === 'hoje') {
+            const hoje = new Date();
+            hoje.setHours(23, 59, 0); // Final do dia
+            modalData.value = hoje.toISOString().slice(0, 16);
+        } else if (args.data === 'amanhã') {
+            const amanha = new Date();
+            amanha.setDate(amanha.getDate() + 1);
+            amanha.setHours(23, 59, 0);
+            modalData.value = amanha.toISOString().slice(0, 16);
+        } else {
+            modalData.value = args.data;
+        }
+    }
+    
+    // Remove a mensagem de confirmação
+    const messageDiv = document.querySelector('.function-call-message:last-child');
+    if (messageDiv) messageDiv.remove();
+    
+    // Foca no primeiro campo
+    if (modalTitulo) modalTitulo.focus();
 }
 
 // Event Listeners

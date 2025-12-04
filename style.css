@@ -417,3 +417,42 @@ h1 {
                 right: 20px;
             }
         }
+        /* Adicione ao seu CSS existente */
+.function-call-message {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.confirmation-buttons button {
+    transition: all 0.2s ease;
+}
+
+.confirmation-buttons button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.post-it-preview {
+    transition: transform 0.3s ease;
+}
+
+.post-it-preview:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+}
+
+/* Indicador de digitando */
+#typingIndicator {
+    opacity: 0.8;
+    font-style: italic;
+}
