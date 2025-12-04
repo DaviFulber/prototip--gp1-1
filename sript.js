@@ -1117,7 +1117,12 @@ function addMessageToChat(sender, content, isError = false) {
     }
     
     const senderName = sender === 'user' ? '👤 Você' : '🤖 Assistente';
-    messageDiv.innerHTML = `<strong>${senderName}:</strong><br>${content}`;
+    const formattedContent = content
+        .replace(/\n/g, '<br>')  // Quebras de linha
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Negrito **texto**
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');  // Itálico *texto*
+
+    messageDiv.innerHTML = `<strong>${senderName}:</strong><br>${formattedContent}`;
     
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
