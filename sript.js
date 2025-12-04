@@ -1109,7 +1109,8 @@ function closeChat() {
 function addMessageToChat(sender, content, isError = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
-    
+    messageDiv.style.whiteSpace = 'pre-wrap';  // ← MAGIC HERE
+    messageDiv.style.wordBreak = 'break-word';
     if (isError) {
         messageDiv.style.background = '#ffebee';
         messageDiv.style.color = '#c62828';
