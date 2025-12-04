@@ -1027,3 +1027,203 @@ function limparTodosPostIts() {
     }
   });
 }
+
+async function getGroqResponse(apiKey, userMessage, model = 'llama-3.1-8b-instant') {
+    try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: 'system', content: 'Você é um assistente útil.' },
+                    { role: 'user', content: userMessage }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024
+            })
+        });
+
+        if (!response.ok) throw new Error('Erro na API');
+        
+        const data = await response.json();
+        return data.choices[0]?.message?.content || 'Sem resposta';
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        return 'Desculpe, ocorreu um erro ao processar sua solicitação.';
+    }
+}
+
+// Uso mais simples ainda:
+
+const WORKER_URL = 'https://gargamel-ai.davi-af26.workers.dev';
+
+// Elementos DOM
+const chatWrapper = document.querySelector('.chat-wrapper');
+const chatContainer = document.getElementById('chatContainer');
+const chatButton = document.getElementById('chatButton');
+const chatHeader = document.getElementById('chatHeader');
+const minimizeBtn = document.getElementById('minimizeBtn');
+const closeBtn = document.getElementById('closeBtn');
+const chatMessages = document.getElementById('chatMessages');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const notificationBadge = document.getElementById('notificationBadge');
+
+// Estado (APENAS UM array para histórico)
+let isExpanded = false;
+let unreadMessages = 0;
+let chatHistory = []; // <- ÚNICO array de histórico
+
+// Expandir chat
+function expandChat() {
+    chatContainer.classList.add('expanded');
+    chatButton.style.display = 'none';
+    isExpanded = true;
+    messageInput.focus();
+    
+    // Resetar notificações
+    unreadMessages = 0;
+    notificationBadge.style.display = 'none';
+}
+
+// Minimizar chat
+function minimizeChat() {
+    chatContainer.classList.remove('expanded');
+    chatButton.style.display = 'flex';
+    isExpanded = false;
+}
+
+// Fechar chat
+function closeChat() {
+    if (confirm('Tem certeza que deseja fechar o chat?')) {
+        minimizeChat();
+    }
+}
+
+// ADICIONAR MENSAGEM VISUAL (CORRIGIDA)
+function addMessageToChat(sender, content, isError = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    
+    if (isError) {
+        messageDiv.style.background = '#ffebee';
+        messageDiv.style.color = '#c62828';
+        messageDiv.style.border = '1px solid #ffcdd2';
+    }
+    
+    const senderName = sender === 'user' ? '👤 Você' : '🤖 Assistente';
+    messageDiv.innerHTML = `<strong>${senderName}:</strong><br>${content}`;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Notificação se chat minimizado
+    if (!isExpanded && sender === 'assistant') {
+        unreadMessages++;
+        notificationBadge.textContent = unreadMessages;
+        notificationBadge.style.display = 'flex';
+    }
+}
+
+// ENVIAR MENSAGEM (CORRIGIDA)
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Limpar input
+    input.value = '';
+    
+    // Adicionar mensagem do usuário VISUALMENTE
+    addMessageToChat('user', message);
+    
+    // Adicionar ao histórico
+    chatHistory.push({ role: 'user', content: message });
+    
+    console.log('Enviando mensagem:', message);
+    console.log('Histórico atual:', chatHistory);
+    
+    try {
+        // Enviar para o worker
+        const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                history: chatHistory,
+                model: 'llama-3.1-8b-instant'
+            })
+        });
+        
+        console.log('Resposta do worker:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Resposta JSON:', data);
+        
+        if (data.error) {
+            addMessageToChat('assistant', `Erro: ${data.error}`, true);
+        } else if (data.response) {
+            // Adicionar resposta da IA VISUALMENTE
+            addMessageToChat('assistant', data.response);
+            
+            // Adicionar ao histórico
+            chatHistory.push({ role: 'assistant', content: data.response });
+            
+            console.log('Histórico atualizado:', chatHistory.length, 'mensagens');
+        }
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        addMessageToChat('assistant', `Erro: ${error.message}`, true);
+    }
+}
+
+// Event Listeners
+chatButton.addEventListener('click', expandChat);
+chatHeader.addEventListener('click', minimizeChat);
+
+minimizeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    minimizeChat();
+});
+
+closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeChat();
+});
+
+sendBtn.addEventListener('click', sendMessage);
+
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// Fechar ao clicar fora
+document.addEventListener('click', (e) => {
+    if (isExpanded && 
+        !chatContainer.contains(e.target) && 
+        !chatButton.contains(e.target)) {
+        minimizeChat();
+    }
+});
+
+// Auto-expand após alguns segundos
+setTimeout(() => {
+    if (!isExpanded) {
+        expandChat();
+    }
+}, 3000);

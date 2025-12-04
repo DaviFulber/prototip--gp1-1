@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gerenciador de Post-its</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
         /* Estilos rápidos para os botões */
@@ -132,6 +133,48 @@
         <div id="postItContainer"></div>
         
 
+
+
+        <div class="chat-wrapper">
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header" id="chatHeader">
+                <h3>🤖 Assistente IA</h3>
+                <div class="chat-controls">
+                    <button class="control-btn" id="minimizeBtn" title="Minimizar">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="control-btn" id="closeBtn" title="Fechar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai-message">
+                    <strong>🤖 Assistente:</strong><br>
+                    Olá! Como posso ajudar você hoje?
+                </div>
+            </div>
+            
+            <div class="chat-input-area">
+                <input 
+                    type="text" 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Digite sua mensagem..."
+                    autocomplete="off"
+                >
+                <button class="send-btn" id="sendBtn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+        
+        <button class="chat-button" id="chatButton">
+            <i class="fas fa-comment"></i>
+            <span class="notification-badge" id="notificationBadge" style="display: none;">3</span>
+        </button>
+    </div>
     <script src="sript.js"></script>
 </body>
 </html>
