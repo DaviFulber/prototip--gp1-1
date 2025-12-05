@@ -13,7 +13,9 @@ const icons = [
   'icon/alert-svgrepo-com.svg',
   'icon/study-university-svgrepo-com.svg',
   'icon/party-horn-svgrepo-com.svg',
-  'icon/picture-svgrepo-com.svg'
+  'icon/picture-svgrepo-com.svg',
+  'icon/reminder-alert-svgrepo-com.svg',
+  'icon/alert-triangle-svgrepo-com.svg'
 ];
 const ICON_EMOJI_MAP = {
   1: '📝', 2: '💡', 3: '⚠️', 4: '🎯', 5: '📚',
