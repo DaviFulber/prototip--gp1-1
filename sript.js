@@ -11,7 +11,9 @@ const CORES_MAP = {
 const icons = [
   'icon/notebook-1-svgrepo-com.svg',
   'icon/alert-svgrepo-com.svg',
-  'icon/study-university-svgrepo-com.svg'
+  'icon/study-university-svgrepo-com.svg',
+  'icon/party-horn-svgrepo-com.svg',
+  'icon/picture-svgrepo-com.svg'
 ];
 const ICON_EMOJI_MAP = {
   1: '📝', 2: '💡', 3: '⚠️', 4: '🎯', 5: '📚',
