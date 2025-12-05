@@ -1529,46 +1529,210 @@ function createPostItFromAI(args) {
     
     console.log('📝 Dados recebidos:', { titulo, descricao, ...args });
     
-    // 3. PREPARA DATA
+    // 3. PREPARA DATA - CORREÇÃO IMPORTANTE!
     let dataFinal;
-    if (args.data === 'amanhã' || args.data === 'amanha' || args.data === 'tomorrow') {
-        const amanha = new Date();
-        amanha.setDate(amanha.getDate() + 1);
-        amanha.setHours(23, 59, 0); // Final do dia
-        dataFinal = amanha.toISOString();
-    } else if (args.data === 'hoje' || args.data === 'today') {
-        const hoje = new Date();
-        hoje.setHours(23, 59, 0); // Final do dia
-        dataFinal = hoje.toISOString();
-    } else if (args.data && typeof args.data === 'string' && args.data.includes('-')) {
-        // Tenta parsear a data fornecida
-        try {
-            dataFinal = new Date(args.data).toISOString();
-            if (isNaN(new Date(dataFinal).getTime())) {
-                // Se não for válida, usa amanhã
+    
+    // Primeiro, tenta usar a data como foi fornecida
+    if (args.data) {
+        // Se a IA enviou uma data específica como string
+        if (typeof args.data === 'string') {
+            // Remove espaços extras e converte para minúsculas
+            const dataStr = args.data.trim().toLowerCase();
+            
+            // Verifica se são palavras-chave especiais
+            if (dataStr === 'amanhã' || dataStr === 'amanha' || dataStr === 'tomorrow') {
                 const amanha = new Date();
                 amanha.setDate(amanha.getDate() + 1);
+                amanha.setHours(12, 0, 0); // Meio-dia de amanhã
                 dataFinal = amanha.toISOString();
+                console.log('📅 Data processada: amanhã ->', dataFinal);
+                
+            } else if (dataStr === 'hoje' || dataStr === 'today') {
+                const hoje = new Date();
+                hoje.setHours(18, 0, 0); // 18h de hoje
+                dataFinal = hoje.toISOString();
+                console.log('📅 Data processada: hoje ->', dataFinal);
+                
+            } else if (dataStr === 'próxima semana' || dataStr === 'proxima semana' || dataStr === 'next week') {
+                const proximaSemana = new Date();
+                proximaSemana.setDate(proximaSemana.getDate() + 7);
+                proximaSemana.setHours(12, 0, 0);
+                dataFinal = proximaSemana.toISOString();
+                console.log('📅 Data processada: próxima semana ->', dataFinal);
+                
+            } else {
+                // Tenta parsear como uma data específica
+                try {
+                    // Remove palavras extras
+                    const cleanDateStr = dataStr
+                        .replace('às', '')
+                        .replace('as', '')
+                        .replace('hora', '')
+                        .replace('horas', '')
+                        .replace('h', '')
+                        .trim();
+                    
+                    // Tenta vários formatos de data
+                    let dateObj;
+                    
+                    // Formato DD/MM/YYYY ou DD/MM/YY
+                    if (cleanDateStr.match(/\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+                        const parts = cleanDateStr.split('/');
+                        const day = parseInt(parts[0]);
+                        const month = parseInt(parts[1]) - 1; // Mês em JS é 0-indexed
+                        const year = parts[2].length === 2 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]);
+                        
+                        dateObj = new Date(year, month, day, 12, 0, 0);
+                        console.log('📅 Parseado formato DD/MM/YYYY:', cleanDateStr, '->', dateObj);
+                        
+                    } 
+                    // Formato YYYY-MM-DD (ISO)
+                    else if (cleanDateStr.match(/\d{4}-\d{1,2}-\d{1,2}/)) {
+                        dateObj = new Date(cleanDateStr + 'T12:00:00');
+                        console.log('📅 Parseado formato YYYY-MM-DD:', cleanDateStr, '->', dateObj);
+                        
+                    }
+                    // Formato com dia da semana
+                    else if (cleanDateStr.includes('segunda') || cleanDateStr.includes('monday')) {
+                        dateObj = getNextWeekday(1); // Segunda-feira
+                    } else if (cleanDateStr.includes('terça') || cleanDateStr.includes('tuesday')) {
+                        dateObj = getNextWeekday(2); // Terça-feira
+                    } else if (cleanDateStr.includes('quarta') || cleanDateStr.includes('wednesday')) {
+                        dateObj = getNextWeekday(3); // Quarta-feira
+                    } else if (cleanDateStr.includes('quinta') || cleanDateStr.includes('thursday')) {
+                        dateObj = getNextWeekday(4); // Quinta-feira
+                    } else if (cleanDateStr.includes('sexta') || cleanDateStr.includes('friday')) {
+                        dateObj = getNextWeekday(5); // Sexta-feira
+                    } else if (cleanDateStr.includes('sábado') || cleanDateStr.includes('saturday')) {
+                        dateObj = getNextWeekday(6); // Sábado
+                    } else if (cleanDateStr.includes('domingo') || cleanDateStr.includes('sunday')) {
+                        dateObj = getNextWeekday(0); // Domingo
+                    }
+                    // Tenta parsear com Date nativo
+                    else {
+                        dateObj = new Date(cleanDateStr);
+                        if (isNaN(dateObj.getTime())) {
+                            // Se ainda não conseguiu, tenta adicionar o ano atual
+                            dateObj = new Date(cleanDateStr + ' ' + new Date().getFullYear());
+                        }
+                    }
+                    
+                    // Verifica se a data é válida
+                    if (dateObj && !isNaN(dateObj.getTime())) {
+                        // Se não tem hora específica, adiciona 12:00
+                        if (dateObj.getHours() === 0 && dateObj.getMinutes() === 0) {
+                            dateObj.setHours(12, 0, 0);
+                        }
+                        
+                        dataFinal = dateObj.toISOString();
+                        console.log('✅ Data parseada com sucesso:', dataFinal);
+                    } else {
+                        throw new Error('Data inválida');
+                    }
+                    
+                } catch (dateError) {
+                    console.warn('⚠️ Não conseguiu parsear data, usando amanhã como fallback:', dateError);
+                    // Fallback para amanhã
+                    const amanha = new Date();
+                    amanha.setDate(amanha.getDate() + 1);
+                    amanha.setHours(12, 0, 0);
+                    dataFinal = amanha.toISOString();
+                }
             }
-        } catch {
-            // Se der erro, usa amanhã
-            const amanha = new Date();
-            amanha.setDate(amanha.getDate() + 1);
-            dataFinal = amanha.toISOString();
+        } 
+        // Se a IA já enviou um objeto Date ou timestamp
+        else if (args.data instanceof Date) {
+            dataFinal = args.data.toISOString();
+        } else if (typeof args.data === 'number') {
+            dataFinal = new Date(args.data).toISOString();
         }
-    } else {
-        // Padrão: amanhã
-        const amanha = new Date();
-        amanha.setDate(amanha.getDate() + 1);
-        amanha.setHours(23, 59, 0);
-        dataFinal = amanha.toISOString();
+    } 
+    
+    // Se não foi fornecida data OU não conseguiu processar, usa padrão inteligente
+    if (!dataFinal) {
+        // Tenta extrair data do título ou descrição
+        const extractedDate = extractDateFromText(titulo + ' ' + descricao);
+        if (extractedDate) {
+            dataFinal = extractedDate.toISOString();
+            console.log('📅 Data extraída do texto:', dataFinal);
+        } else {
+            // Padrão: 2 dias a partir de agora
+            const padrao = new Date();
+            padrao.setDate(padrao.getDate() + 2);
+            padrao.setHours(12, 0, 0);
+            dataFinal = padrao.toISOString();
+            console.log('📅 Usando data padrão (2 dias):', dataFinal);
+        }
+    }
+    
+    // Função auxiliar para obter próximo dia da semana
+    function getNextWeekday(targetDay) {
+        const today = new Date();
+        const currentDay = today.getDay();
+        const daysUntilTarget = (targetDay + 7 - currentDay) % 7;
+        const nextDate = new Date(today);
+        nextDate.setDate(today.getDate() + (daysUntilTarget === 0 ? 7 : daysUntilTarget));
+        nextDate.setHours(12, 0, 0);
+        return nextDate;
+    }
+    
+    // Função auxiliar para extrair data do texto
+    function extractDateFromText(text) {
+        const lowerText = text.toLowerCase();
+        
+        // Procura por padrões comuns
+        const patterns = [
+            // Hoje/amanhã/etc
+            { regex: /(hoje|today)/, offset: 0 },
+            { regex: /(amanhã|amanha|tomorrow)/, offset: 1 },
+            { regex: /(depois de amanhã|day after tomorrow)/, offset: 2 },
+            { regex: /(próxima semana|proxima semana|next week)/, offset: 7 },
+            
+            // Dias da semana
+            { regex: /(segunda|monday)/, weekday: 1 },
+            { regex: /(terça|terca|tuesday)/, weekday: 2 },
+            { regex: /(quarta|wednesday)/, weekday: 3 },
+            { regex: /(quinta|thursday)/, weekday: 4 },
+            { regex: /(sexta|friday)/, weekday: 5 },
+            { regex: /(sábado|sabado|saturday)/, weekday: 6 },
+            { regex: /(domingo|sunday)/, weekday: 0 },
+            
+            // Datas numéricas
+            { regex: /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/, parse: (match) => {
+                const day = parseInt(match[1]);
+                const month = parseInt(match[2]) - 1;
+                const year = match[3].length === 2 ? 2000 + parseInt(match[3]) : parseInt(match[3]);
+                return new Date(year, month, day, 12, 0, 0);
+            }}
+        ];
+        
+        for (const pattern of patterns) {
+            const match = lowerText.match(pattern.regex);
+            if (match) {
+                if (pattern.offset !== undefined) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + pattern.offset);
+                    date.setHours(12, 0, 0);
+                    return date;
+                } else if (pattern.weekday !== undefined) {
+                    return getNextWeekday(pattern.weekday);
+                } else if (pattern.parse) {
+                    return pattern.parse(match);
+                }
+            }
+        }
+        
+        return null;
     }
     
     // 4. PREPARA CORES
     const corMap = {
         'amarelo': '#ffffa5', 'vermelho': '#ffcccc', 'verde': '#ccffcc',
         'azul': '#cce5ff', 'roxo': '#e6ccff', 'rosa': '#ffccf9',
-        'laranja': '#ffddcc', 'cinza': '#f0f0f0'
+        'laranja': '#ffddcc', 'cinza': '#f0f0f0',
+        'yellow': '#ffffa5', 'red': '#ffcccc', 'green': '#ccffcc',
+        'blue': '#cce5ff', 'purple': '#e6ccff', 'pink': '#ffccf9',
+        'orange': '#ffddcc', 'gray': '#f0f0f0'
     };
     
     const corFinal = args.cor ? (corMap[args.cor.toLowerCase()] || args.cor) : '#ffffa5';
@@ -1580,6 +1744,16 @@ function createPostItFromAI(args) {
         const iconNum = parseInt(args.iconChc);
         if (!isNaN(iconNum) && iconNum >= 1 && iconNum <= 10) {
             iconEscolhaFinal = iconNum.toString();
+        } else {
+            // Tenta inferir ícone baseado no conteúdo
+            const lowerTitulo = titulo.toLowerCase();
+            if (lowerTitulo.includes('estud') || lowerTitulo.includes('ler') || lowerTitulo.includes('curso')) {
+                iconEscolhaFinal = '5'; // 📚
+            } else if (lowerTitulo.includes('urgent') || lowerTitulo.includes('importante') || lowerTitulo.includes('prioridade')) {
+                iconEscolhaFinal = '3'; // ⚠️
+            } else if (lowerTitulo.includes('meta') || lowerTitulo.includes('objetivo') || lowerTitulo.includes('goal')) {
+                iconEscolhaFinal = '4'; // 🎯
+            }
         }
     }
     
@@ -1597,7 +1771,7 @@ function createPostItFromAI(args) {
         iconEscolha: iconEscolhaFinal
     };
     
-    console.log('📦 Objeto completo:', postItData);
+    console.log('📦 Objeto completo final:', postItData);
     
     // 8. SALVA NO LOCALSTORAGE
     try {
@@ -1674,7 +1848,7 @@ function createPostItFromAI(args) {
         Swal.fire({
             icon: 'success',
             title: '✅ Post-it Criado!',
-            text: `"${titulo}" foi salvo no sistema.`,
+            text: `"${titulo}" foi salvo para ${new Date(dataFinal).toLocaleDateString('pt-BR')}.`,
             timer: 2000,
             showConfirmButton: false
         });
@@ -1682,7 +1856,6 @@ function createPostItFromAI(args) {
     
     return true;
 }
-
 // Função para criar múltiplos post-its
 function createAllPostIts(postItsArray) {
     if (!postItsArray || !Array.isArray(postItsArray)) {
